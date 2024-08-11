@@ -1,0 +1,25 @@
+{
+  "name": "jsolite",
+  "version": "0.0.1",
+  "public": true,
+  "author": {
+    "name": "kolecreates",
+    "url": "https://github.com/kolecreates"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kolecreates/jsolite"
+  },
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "bun build index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "license": "MIT"
+}
