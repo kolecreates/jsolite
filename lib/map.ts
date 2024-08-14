@@ -14,7 +14,7 @@ export class JsoLiteMap<K, V> {
 
   get(key: K): V | undefined {
     const result = this.db
-      .query<{ value: string }, { $key: string }>(
+      .prepare<{ value: string }, { $key: string }>(
         `SELECT value FROM "${this.tableName}" WHERE key = $key`
       )
       .get({ $key: JSON.stringify(key) });
@@ -23,10 +23,10 @@ export class JsoLiteMap<K, V> {
 
   set(key: K, value: V): void {
     this.db
-      .query(
-        `INSERT OR REPLACE INTO "${this.tableName}" (key, value) VALUES (?, ?)`
-      )
-      .run(JSON.stringify(key), JSON.stringify(value));
+      .run(
+        `INSERT OR REPLACE INTO "${this.tableName}" (key, value) VALUES (?, ?)`,
+        [JSON.stringify(key), JSON.stringify(value)]
+      );
   }
 
   has(key: K): boolean {
