@@ -19,9 +19,13 @@ const server =Bun.serve({
                 const count = counters.get(key) ?? 0;
                 counters.set(key, count + 1);
                 return count + 1;
-            })();
+            });
             return Response.json({ count });
+        } else if (url.pathname === "/counter" && req.method === "GET") {
+            const key = url.searchParams.get("name")!;
+            return Response.json({ count: counters.get(key) ?? 0 });
         }
+
         return new Response("Not found", { status: 404 });
     },
     

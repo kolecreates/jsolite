@@ -247,7 +247,7 @@ describe("Map", () => {
       for (let i = 0; i < iterations; i++) {
         perfMap.set(i, `value${i}`);
       }
-    })();
+    });
     console.timeEnd("Insert");
 
     console.time("Read");
@@ -261,7 +261,7 @@ describe("Map", () => {
       for (let i = 0; i < iterations; i++) {
         perfMap.set(i, `updatedValue${i}`);
       }
-    })();
+    });
     console.timeEnd("Update");
 
     console.time("Delete");
@@ -269,7 +269,7 @@ describe("Map", () => {
       for (let i = 0; i < iterations; i++) {
         perfMap.delete(i);
       }
-    })();
+    });
     console.timeEnd("Delete");
 
     // Verify the map is empty after deletions

@@ -55,7 +55,7 @@ export default function jsolite(path: string) {
       return jsoLiteObject;
     },
     transaction<T extends (...args: any) => any>(cb: T) {
-      return db.transaction(cb).immediate;
+      return db.transaction(cb).immediate() as ReturnType<T>;
     },
     listArrays() {
       return db
