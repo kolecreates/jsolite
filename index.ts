@@ -4,10 +4,20 @@ import { JsoLiteMap } from "./lib/map";
 import { JsoliteArray } from "./lib/array";
 import { record } from "./lib/record";
 
+
 export default function jsolite(path: string) {
   const db = new Database(path);
-  db.run("PRAGMA journal_mode = WAL");
-  db.fileControl(constants.SQLITE_FCNTL_PERSIST_WAL, 0);
+  db.run("PRAGMA busy_timeout = 2000");
+  /*
+   * Setting journal mode to WAL in multiple processes will block.
+   * 1. Only set the journal mode if it is not already set to WAL.
+   * 2. If it is not set to WAL, sleep for a small random amount of time to avoid contention.
+   */
+  const journalMode = db.prepare("PRAGMA journal_mode").get();
+  if (journalMode !== "WAL") {
+    Bun.sleepSync(Math.random() * 100);
+    db.run("PRAGMA journal_mode = WAL");
+  }
 
   return {
     [Symbol.dispose]() {
@@ -44,8 +54,8 @@ export default function jsolite(path: string) {
       }
       return jsoLiteObject;
     },
-    transaction<T extends (...args: any) => any>(cb: T): T {
-      return db.transaction(cb) as unknown as T;
+    transaction<T extends (...args: any) => any>(cb: T) {
+      return db.transaction(cb).immediate() as ReturnType<T>;
     },
     listArrays() {
       return db

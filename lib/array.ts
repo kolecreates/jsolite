@@ -102,7 +102,7 @@ export class JsoliteArray<T> {
         return firstEntry.value ? JSON.parse(firstEntry.value) : undefined;
       }
       return undefined;
-    })();
+    }).immediate() as unknown as (T | undefined);
   }
 
   unshift(...items: T[]): number {
@@ -129,35 +129,29 @@ export class JsoliteArray<T> {
   }
 
   slice(start?: number, end?: number) {
-    return this.db.transaction(() => {
-      const sliceName = `__unnamed-${this.name}-${crypto.randomUUID()}`;
-      const sliceArray = new JsoliteArray<T>(this.db, sliceName);
-      const len = this.length;
+    const sliceName = `__unnamed-${this.name}-${crypto.randomUUID()}`;
+    const sliceArray = new JsoliteArray<T>(this.db, sliceName);
 
-      const normalizedStart =
-        start !== undefined
-          ? start < 0
-            ? Math.max(len + start, 0)
-            : Math.min(start, len)
-          : 0;
-      const normalizedEnd =
-        end !== undefined
-          ? end < 0
-            ? Math.max(len + end, 0)
-            : Math.min(end, len)
-          : len;
+    this.db
+      .prepare(
+        `
+        WITH tl as (
+          SELECT id as length FROM "${this.tableName}" ORDER BY id DESC LIMIT 1
+        ),
+        ns as (
+          SELECT (CASE WHEN $start IS NULL THEN 0 WHEN $start < 0 THEN max(tl.length + $start, 0) ELSE min($start, tl.length) END) as normalized_start from tl
+        ),
+        ne as (
+          SELECT (CASE WHEN $end IS NULL THEN tl.length WHEN $END < 0 THEN max(tl.length + $end, 0) ELSE min($end, tl.length) END) as normalized_end from tl
+        )
+        INSERT INTO "${sliceArray.tableName}" SELECT (t.id - ns.normalized_start) as id, value FROM "${this.tableName}" t, ns, ne WHERE id >= ns.normalized_start + 1 AND id < ne.normalized_end + 1`
+      )
+      .run({
+        $start: start ?? null,
+        $end: end ?? null,
+      });
 
-      const startId = normalizedStart + 1;
-      const endId = normalizedEnd + 1;
-      const offset = startId - 1;
-
-      this.db.run<[number, number, number]>(
-        `INSERT INTO "${sliceArray.tableName}" SELECT (id - ?) as id, value FROM "${this.tableName}" WHERE id >= ? AND id < ?`,
-        [offset, startId, endId]
-      );
-
-      return sliceArray;
-    })();
+    return sliceArray;
   }
 
   splice(start: number, deleteCount?: number, ...items: T[]): JsoliteArray<T> {
@@ -201,7 +195,7 @@ export class JsoliteArray<T> {
       }
 
       return removed;
-    })();
+    }).immediate() as unknown as JsoliteArray<T>;
   }
 
   rename(newName: string): void {
@@ -223,18 +217,19 @@ export class JsoliteArray<T> {
   }
 
   filter(predicate: (item: T) => boolean) {
-    return this.db.transaction(() => {
-      const filteredName = `__unnamed-${this.name}-${crypto.randomUUID()}`;
-      const filteredArray = new JsoliteArray<T>(this.db, filteredName);
-      const n = this.length;
-      for (let i = 0; i < n; i++) {
-        const item = this.at(i);
-        if (item !== undefined && predicate(item)) {
-          filteredArray.push(item);
-        }
+    const filteredName = `__unnamed-${this.name}-${crypto.randomUUID()}`;
+    const filteredArray = new JsoliteArray<T>(this.db, filteredName);
+    const n = this.length;
+    for (let i = 0; i < n; i++) {
+      const item = this.at(i);
+      if (item === undefined) {
+        break;
       }
-      return filteredArray;
-    })();
+      if (predicate(item)) {
+        filteredArray.push(item);
+      }
+    }
+    return filteredArray;
   }
 
   sort(compare: (a: T, b: T) => number): this {
@@ -257,7 +252,7 @@ export class JsoliteArray<T> {
           }
         }
       } while (moved);
-    })();
+    }).immediate();
 
     return this;
   }
@@ -282,18 +277,17 @@ export class JsoliteArray<T> {
   }
 
   map<R>(callback: (item: T) => R): JsoliteArray<R> {
-    return this.db.transaction(() => {
-      const mappedTableName = `unnamed-array-${
-        this.name
-      }-${crypto.randomUUID()}`;
-      const mappedArray = new JsoliteArray<R>(this.db, mappedTableName);
-      const n = this.length;
-      for (let i = 0; i < n; i++) {
-        const item = this.at(i);
-        mappedArray.push(callback(item!));
+    const mappedTableName = `unnamed-array-${this.name}-${crypto.randomUUID()}`;
+    const mappedArray = new JsoliteArray<R>(this.db, mappedTableName);
+    const n = this.length;
+    for (let i = 0; i < n; i++) {
+      const item = this.at(i);
+      if (item === undefined) {
+        break;
       }
-      return mappedArray;
-    })();
+      mappedArray.push(callback(item!));
+    }
+    return mappedArray;
   }
 
   reduce<R>(
@@ -360,7 +354,7 @@ export class JsoliteArray<T> {
           this.set(n - i - 1, a);
         }
       }
-    })();
+    }).immediate();
     return this;
   }
 
